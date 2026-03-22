@@ -1,6 +1,6 @@
 .container {
   width: 100%;
-  height: clamp(300px, 70vw, 540px);
+  height: clamp(500px, 70vw, 540px);
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -20,7 +20,7 @@
 .video, .preview {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   background: #000;
 }
 
@@ -48,4 +48,10 @@
   padding: 24px;
   text-align: center;
   color: var(--danger);
+}
+
+@media (max-width: 640px) {
+  .container {
+    height: 75dvh;
+  }
 }
