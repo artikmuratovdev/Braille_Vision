@@ -15,6 +15,7 @@ type PipelineState = 'idle' | 'loading' | 'done' | 'error';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'camera' | 'file'>('camera');
+  const [mobileResultTab, setMobileResultTab] = useState<'ocr' | 'braille' | 'gcode'>('ocr');
   const [imageData, setImageData] = useState<{ base64: string, mimeType: string, previewUrl: string } | null>(null);
   const [geminiKey, setGeminiKey] = useState<string>('');
   const [ocrText, setOcrText] = useState<string>('');
@@ -234,15 +235,59 @@ export default function App() {
             </button>
           </section>
 
-          <section className={styles.outputPanel}>
-            <div className={styles.panelHeader}>BRAILLE + GCODE</div>
+          <section className={`${styles.outputPanel} ${styles.desktopPanel}`}>
+            <div className={styles.panelHeader}>BRAILLE OUTPUT</div>
             <BrailleOutput originalText={ocrText} />
           </section>
 
-          <section className={styles.ocrPanel}>
+          <section className={`${styles.ocrPanel} ${styles.desktopPanel}`}>
             <div className={styles.panelHeader}>OCR TEXT</div>
             <OcrResult text={ocrText} onChange={handleOcrChange} />
             <GcodeOutput gcode={gcodeText} brailleText={brailleText} settings={settings} />
+          </section>
+
+          <section className={`${styles.mobileResultPanel} ${styles.mobileOnly}`}>
+            <div className={styles.mobileResultTabs}>
+              <button
+                className={`${styles.mobileResultTab} ${mobileResultTab === 'ocr' ? styles.activeMobileResultTab : ''}`}
+                onClick={() => setMobileResultTab('ocr')}
+              >
+                OCR TEXT
+              </button>
+              <button
+                className={`${styles.mobileResultTab} ${mobileResultTab === 'braille' ? styles.activeMobileResultTab : ''}`}
+                onClick={() => setMobileResultTab('braille')}
+              >
+                BRAILLE OUTPUT
+              </button>
+              <button
+                className={`${styles.mobileResultTab} ${mobileResultTab === 'gcode' ? styles.activeMobileResultTab : ''}`}
+                onClick={() => setMobileResultTab('gcode')}
+              >
+                G-CODE
+              </button>
+            </div>
+
+            {mobileResultTab === 'ocr' && (
+              <>
+                <div className={styles.panelHeader}>OCR TEXT</div>
+                <OcrResult text={ocrText} onChange={handleOcrChange} />
+              </>
+            )}
+
+            {mobileResultTab === 'braille' && (
+              <>
+                <div className={styles.panelHeader}>BRAILLE OUTPUT</div>
+                <BrailleOutput originalText={ocrText} />
+              </>
+            )}
+
+            {mobileResultTab === 'gcode' && (
+              <>
+                <div className={styles.panelHeader}>G-CODE</div>
+                <GcodeOutput gcode={gcodeText} brailleText={brailleText} settings={settings} />
+              </>
+            )}
           </section>
         </div>
       </main>
