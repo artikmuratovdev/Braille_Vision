@@ -1,0 +1,5 @@
+{
+  "name": "Braille Vision",
+  "description": "Convert images to Braille G-code using Google Gemini AI.",
+  "requestFramePermissions": ["camera"]
+}
