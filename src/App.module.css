@@ -4,7 +4,6 @@
   min-height: 100vh;
   background: var(--bg);
   position: relative;
-  padding-bottom: 24px;
 }
 
 .switch{
