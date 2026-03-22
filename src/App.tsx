@@ -154,6 +154,21 @@ export default function App() {
     setGcodeText(gcode);
   };
 
+  const handleDownloadGcode = () => {
+    if (!gcodeText) return;
+    const blob = new Blob([gcodeText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `braille_output_${new Date().getTime()}.gcode`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const isGcodeReady = pipeline.gcode === 'done' && !!gcodeText;
+
   return (
     <div className={styles.appWrapper}>
       <header className={styles.header}>
@@ -221,7 +236,7 @@ export default function App() {
 
             <button 
               className={`${styles.processBtn} ${pipeline.ocr === 'loading' ? styles.loading : ''}`}
-              onClick={handleProcess}
+              onClick={isGcodeReady ? handleDownloadGcode : handleProcess}
               disabled={!imageData || pipeline.ocr === 'loading'}
             >
               {pipeline.ocr === 'loading' ? (
@@ -229,6 +244,8 @@ export default function App() {
                   <span className={styles.spinner}></span>
                   PROCESSING...
                 </>
+              ) : isGcodeReady ? (
+                'DOWNLOAD G-CODE'
               ) : (
                 'PROCESS IMAGE'
               )}

@@ -1,6 +1,6 @@
 .container {
   width: 100%;
-  aspect-ratio: 16/9;
+  height: clamp(300px, 52vw, 540px);
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
