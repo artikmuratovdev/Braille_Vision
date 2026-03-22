@@ -1,39 +1,45 @@
-import { useState, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai/web';
-import CameraCapture from './components/CameraCapture/CameraCapture';
-import FileUpload from './components/FileUpload/FileUpload';
-import Pipeline from './components/Pipeline/Pipeline';
-import Settings from './components/Settings/Settings';
-import OcrResult from './components/OcrResult/OcrResult';
-import BrailleOutput from './components/BrailleOutput/BrailleOutput';
-import GcodeOutput from './components/GcodeOutput/GcodeOutput';
-import { textToBraille } from './utils/braille';
-import { brailleToGcode, GcodeSettings } from './utils/gcode';
-import styles from './App.module.css';
+import { useState, useEffect } from "react";
+import { GoogleGenAI } from "@google/genai/web";
+import CameraCapture from "./components/CameraCapture/CameraCapture";
+import FileUpload from "./components/FileUpload/FileUpload";
+import Pipeline from "./components/Pipeline/Pipeline";
+import Settings from "./components/Settings/Settings";
+import OcrResult from "./components/OcrResult/OcrResult";
+import BrailleOutput from "./components/BrailleOutput/BrailleOutput";
+import GcodeOutput from "./components/GcodeOutput/GcodeOutput";
+import { textToBraille } from "./utils/braille";
+import { brailleToGcode, GcodeSettings } from "./utils/gcode";
+import styles from "./App.module.css";
 
-type PipelineState = 'idle' | 'loading' | 'done' | 'error';
+type PipelineState = "idle" | "loading" | "done" | "error";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'camera' | 'file'>('camera');
-  const [mobileResultTab, setMobileResultTab] = useState<'ocr' | 'braille' | 'gcode'>('ocr');
-  const [imageData, setImageData] = useState<{ base64: string, mimeType: string, previewUrl: string } | null>(null);
-  const [geminiKey, setGeminiKey] = useState<string>('');
-  const [ocrText, setOcrText] = useState<string>('');
-  const [brailleText, setBrailleText] = useState<string>('');
-  const [gcodeText, setGcodeText] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<"camera" | "file">("camera");
+  const [mobileResultTab, setMobileResultTab] = useState<
+    "ocr" | "braille" | "gcode"
+  >("ocr");
+  const [imageData, setImageData] = useState<{
+    base64: string;
+    mimeType: string;
+    previewUrl: string;
+  } | null>(null);
+  const [geminiKey, setGeminiKey] = useState<string>("");
+  const [ocrText, setOcrText] = useState<string>("");
+  const [brailleText, setBrailleText] = useState<string>("");
+  const [gcodeText, setGcodeText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [pipeline, setPipeline] = useState<{
-    capture: 'idle' | 'done';
+    capture: "idle" | "done";
     ocr: PipelineState;
-    braille: 'idle' | 'done';
-    gcode: 'idle' | 'done';
+    braille: "idle" | "done";
+    gcode: "idle" | "done";
   }>({
-    capture: 'idle',
-    ocr: 'idle',
-    braille: 'idle',
-    gcode: 'idle'
+    capture: "idle",
+    ocr: "idle",
+    braille: "idle",
+    gcode: "idle",
   });
 
   const [settings, setSettings] = useState<GcodeSettings>({
@@ -43,32 +49,32 @@ export default function App() {
     startY: 10,
     feedRate: 1200,
     drillRate: 300,
-    safeZ: 5
+    safeZ: 5,
   });
 
   useEffect(() => {
-    const savedKey = localStorage.getItem('gemini_api_key');
+    const savedKey = localStorage.getItem("gemini_api_key");
     if (savedKey) setGeminiKey(savedKey);
 
-    const savedSettings = localStorage.getItem('gcode_settings');
+    const savedSettings = localStorage.getItem("gcode_settings");
     if (savedSettings) {
       try {
         setSettings(JSON.parse(savedSettings));
       } catch (e) {
-        console.error('Failed to parse settings', e);
+        console.error("Failed to parse settings", e);
       }
     }
   }, []);
 
   const handleKeyChange = (key: string) => {
     setGeminiKey(key);
-    localStorage.setItem('gemini_api_key', key);
+    localStorage.setItem("gemini_api_key", key);
   };
 
   const handleSettingsChange = (newSettings: GcodeSettings) => {
     setSettings(newSettings);
-    localStorage.setItem('gcode_settings', JSON.stringify(newSettings));
-    
+    localStorage.setItem("gcode_settings", JSON.stringify(newSettings));
+
     // Re-generate G-code if we already have braille text
     if (brailleText) {
       const gcode = brailleToGcode(brailleText, newSettings);
@@ -76,73 +82,87 @@ export default function App() {
     }
   };
 
-  const handleImageCapture = (data: { base64: string, mimeType: string, previewUrl: string }) => {
+  const handleImageCapture = (data: {
+    base64: string;
+    mimeType: string;
+    previewUrl: string;
+  }) => {
     if (data.base64) {
       setImageData(data);
-      setPipeline(prev => ({ ...prev, capture: 'done', ocr: 'idle', braille: 'idle', gcode: 'idle' }));
-      setOcrText('');
-      setBrailleText('');
-      setGcodeText('');
+      setPipeline((prev) => ({
+        ...prev,
+        capture: "done",
+        ocr: "idle",
+        braille: "idle",
+        gcode: "idle",
+      }));
+      setOcrText("");
+      setBrailleText("");
+      setGcodeText("");
       setError(null);
     } else {
       setImageData(null);
-      setPipeline(prev => ({ ...prev, capture: 'idle' }));
+      setPipeline((prev) => ({ ...prev, capture: "idle" }));
     }
   };
 
   const handleProcess = async () => {
     if (!imageData) {
-      setError('Please capture or upload an image first.');
+      setError("Please capture or upload an image first.");
       return;
     }
     if (!geminiKey) {
-      setError('Please enter your Gemini API key in Settings.');
+      setError("Please enter your Gemini API key in Settings.");
       return;
     }
 
     setError(null);
-    setPipeline(prev => ({ ...prev, ocr: 'loading', braille: 'idle', gcode: 'idle' }));
+    setPipeline((prev) => ({
+      ...prev,
+      ocr: "loading",
+      braille: "idle",
+      gcode: "idle",
+    }));
 
     try {
       const ai = new GoogleGenAI({ apiKey: geminiKey });
-      
+
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: "gemini-3-flash-preview",
         contents: {
           parts: [
             {
-              text: "Extract all text from this image exactly as written. Return only the raw text content, preserving original line breaks. Do not add explanations, markdown formatting, or commentary."
+              text: "Extract all text from this image exactly as written. Return only the raw text content, preserving original line breaks. Do not add explanations, markdown formatting, or commentary.",
             },
             {
               inlineData: {
                 data: imageData.base64,
-                mimeType: imageData.mimeType
-              }
-            }
-          ]
-        }
+                mimeType: imageData.mimeType,
+              },
+            },
+          ],
+        },
       });
 
-      const extractedText = response.text?.trim() || '';
+      const extractedText = response.text?.trim() || "";
       if (!extractedText) {
-        throw new Error('No text extracted from the image.');
+        throw new Error("No text extracted from the image.");
       }
 
       setOcrText(extractedText);
-      setPipeline(prev => ({ ...prev, ocr: 'done' }));
+      setPipeline((prev) => ({ ...prev, ocr: "done" }));
 
       const braille = textToBraille(extractedText);
       setBrailleText(braille);
-      setPipeline(prev => ({ ...prev, braille: 'done' }));
+      setPipeline((prev) => ({ ...prev, braille: "done" }));
 
       const gcode = brailleToGcode(braille, settings);
       setGcodeText(gcode);
-      setPipeline(prev => ({ ...prev, gcode: 'done' }));
-
+      setPipeline((prev) => ({ ...prev, gcode: "done" }));
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Failed to process image.');
-      setPipeline(prev => ({ ...prev, ocr: 'error' }));
+      setError(err.message || "Failed to process image.");
+      setPipeline((prev) => ({ ...prev, ocr: "error" }));
     }
   };
 
@@ -156,9 +176,9 @@ export default function App() {
 
   const handleDownloadGcode = () => {
     if (!gcodeText) return;
-    const blob = new Blob([gcodeText], { type: 'text/plain' });
+    const blob = new Blob([gcodeText], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `braille_output_${new Date().getTime()}.gcode`;
     document.body.appendChild(a);
@@ -167,53 +187,48 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const isGcodeReady = pipeline.gcode === 'done' && !!gcodeText;
+  const isGcodeReady = pipeline.gcode === "done" && !!gcodeText;
 
   return (
     <div className={styles.appWrapper}>
       <header className={styles.header}>
         <h1 className={styles.logo}>BRAILLE·OCR</h1>
-        <button className={styles.settingsBtn} onClick={() => setIsSettingsOpen(!isSettingsOpen)}>
+        <button
+          className={styles.settingsBtn}
+          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+        >
           ⚙
         </button>
       </header>
 
-      <Settings 
-        isOpen={isSettingsOpen} 
-        settings={settings} 
+      <Settings
+        isOpen={isSettingsOpen}
+        settings={settings}
         onSettingsChange={handleSettingsChange}
         geminiKey={geminiKey}
         onKeyChange={handleKeyChange}
       />
 
-      <div className={styles.tabBar}>
-        <button 
-          className={`${styles.tab} ${activeTab === 'camera' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('camera')}
-        >
-          📷 Camera
-        </button>
-        <button 
-          className={`${styles.tab} ${activeTab === 'file' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('file')}
-        >
-          📁 File
-        </button>
-      </div>
-
       <main className={styles.main}>
         {!geminiKey && (
           <div className={styles.warningBanner}>
-            <div style={{ marginBottom: '8px' }}>⚠️ Please enter your Gemini API key to continue.</div>
-            <input 
-              type="password" 
-              placeholder="AIzaSy..." 
+            <div style={{ marginBottom: "8px" }}>
+              ⚠️ Please enter your Gemini API key to continue.
+            </div>
+            <input
+              type="password"
+              placeholder="AIzaSy..."
               value={geminiKey}
               onChange={(e) => handleKeyChange(e.target.value)}
               className={styles.apiKeyInput}
             />
-            <div style={{ marginTop: '8px', fontSize: '12px' }}>
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
+            <div style={{ marginTop: "8px", fontSize: "12px" }}>
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "var(--accent)" }}
+              >
                 Get API key →
               </a>
             </div>
@@ -222,9 +237,17 @@ export default function App() {
 
         <div className={styles.dashboardGrid}>
           <section className={styles.capturePanel}>
-            <div className={styles.panelHeader}>INPUT</div>
+            <div className={styles.panelHeader}>
+              <span>INPUT</span>
+              <button
+                className={styles.switch}
+                onClick={() => setActiveTab(activeTab === "file" ? "camera":"file")}
+              >
+                {activeTab === "file" ? "📷 Camera":"📁 File"}
+              </button>
+            </div>
 
-            {activeTab === 'camera' ? (
+            {activeTab === "camera" ? (
               <CameraCapture onCapture={handleImageCapture} />
             ) : (
               <FileUpload onUpload={handleImageCapture} />
@@ -234,20 +257,20 @@ export default function App() {
 
             {error && <div className={styles.errorBanner}>{error}</div>}
 
-            <button 
-              className={`${styles.processBtn} ${pipeline.ocr === 'loading' ? styles.loading : ''}`}
+            <button
+              className={`${styles.processBtn} ${pipeline.ocr === "loading" ? styles.loading : ""}`}
               onClick={isGcodeReady ? handleDownloadGcode : handleProcess}
-              disabled={!imageData || pipeline.ocr === 'loading'}
+              disabled={!imageData || pipeline.ocr === "loading"}
             >
-              {pipeline.ocr === 'loading' ? (
+              {pipeline.ocr === "loading" ? (
                 <>
                   <span className={styles.spinner}></span>
                   PROCESSING...
                 </>
               ) : isGcodeReady ? (
-                'DOWNLOAD G-CODE'
+                "DOWNLOAD G-CODE"
               ) : (
-                'PROCESS IMAGE'
+                "PROCESS IMAGE"
               )}
             </button>
           </section>
@@ -260,49 +283,59 @@ export default function App() {
           <section className={`${styles.ocrPanel} ${styles.desktopPanel}`}>
             <div className={styles.panelHeader}>OCR TEXT</div>
             <OcrResult text={ocrText} onChange={handleOcrChange} />
-            <GcodeOutput gcode={gcodeText} brailleText={brailleText} settings={settings} />
+            <GcodeOutput
+              gcode={gcodeText}
+              brailleText={brailleText}
+              settings={settings}
+            />
           </section>
 
-          <section className={`${styles.mobileResultPanel} ${styles.mobileOnly}`}>
+          <section
+            className={`${styles.mobileResultPanel} ${styles.mobileOnly}`}
+          >
             <div className={styles.mobileResultTabs}>
               <button
-                className={`${styles.mobileResultTab} ${mobileResultTab === 'ocr' ? styles.activeMobileResultTab : ''}`}
-                onClick={() => setMobileResultTab('ocr')}
+                className={`${styles.mobileResultTab} ${mobileResultTab === "ocr" ? styles.activeMobileResultTab : ""}`}
+                onClick={() => setMobileResultTab("ocr")}
               >
                 OCR TEXT
               </button>
               <button
-                className={`${styles.mobileResultTab} ${mobileResultTab === 'braille' ? styles.activeMobileResultTab : ''}`}
-                onClick={() => setMobileResultTab('braille')}
+                className={`${styles.mobileResultTab} ${mobileResultTab === "braille" ? styles.activeMobileResultTab : ""}`}
+                onClick={() => setMobileResultTab("braille")}
               >
                 BRAILLE OUTPUT
               </button>
               <button
-                className={`${styles.mobileResultTab} ${mobileResultTab === 'gcode' ? styles.activeMobileResultTab : ''}`}
-                onClick={() => setMobileResultTab('gcode')}
+                className={`${styles.mobileResultTab} ${mobileResultTab === "gcode" ? styles.activeMobileResultTab : ""}`}
+                onClick={() => setMobileResultTab("gcode")}
               >
                 G-CODE
               </button>
             </div>
 
-            {mobileResultTab === 'ocr' && (
+            {mobileResultTab === "ocr" && (
               <>
                 <div className={styles.panelHeader}>OCR TEXT</div>
                 <OcrResult text={ocrText} onChange={handleOcrChange} />
               </>
             )}
 
-            {mobileResultTab === 'braille' && (
+            {mobileResultTab === "braille" && (
               <>
                 <div className={styles.panelHeader}>BRAILLE OUTPUT</div>
                 <BrailleOutput originalText={ocrText} />
               </>
             )}
 
-            {mobileResultTab === 'gcode' && (
+            {mobileResultTab === "gcode" && (
               <>
                 <div className={styles.panelHeader}>G-CODE</div>
-                <GcodeOutput gcode={gcodeText} brailleText={brailleText} settings={settings} />
+                <GcodeOutput
+                  gcode={gcodeText}
+                  brailleText={brailleText}
+                  settings={settings}
+                />
               </>
             )}
           </section>

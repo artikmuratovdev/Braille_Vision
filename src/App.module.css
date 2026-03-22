@@ -7,6 +7,14 @@
   padding-bottom: 24px;
 }
 
+.switch{
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: 3px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
 .header {
   position: sticky;
   top: 0;
@@ -137,6 +145,9 @@
   letter-spacing: 0.1em;
   font-weight: 700;
   margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .warningBanner {
