@@ -24,6 +24,18 @@ export interface GcodeSettings {
   safeZ: number;
 }
 
+/**
+ * Z rest position. Marlin's software endstops never let Z go below 0, so the head's rest
+ * position is declared as a positive height (G92) and a punch moves Z between rest and rest − depth.
+ * A negative depth punches toward +Z, for machines whose Z motor presses in that direction.
+ */
+export const zRestGcode = (s: GcodeSettings) => `G92 Z${s.safeZ}`;
+
+/** G-code that presses one dot at the current X/Y with the Z motor and returns to rest. */
+export function punchGcode(s: GcodeSettings): string {
+  return `G1 Z${(s.safeZ - s.dotDepth).toFixed(2)} F${s.drillRate}\nG1 Z${s.safeZ} F${s.drillRate}\n`;
+}
+
 export function countDots(brailleText: string): number {
   if (!brailleText) return 0;
   let count = 0;
@@ -66,8 +78,7 @@ export function brailleToGcode(brailleText: string, settings: GcodeSettings): st
 ; Characters: ${charCount} | Dots: ${dotCount}
 G21      ; Metric units
 G90      ; Absolute positioning
-G28      ; Home all axes
-G0 Z${settings.safeZ} F${settings.feedRate}
+${zRestGcode(settings)}  ; Head must be at rest (up) now
 `;
 
   const cellWidth = settings.dotSpacing * 2.5;
@@ -98,18 +109,15 @@ G0 Z${settings.safeZ} F${settings.feedRate}
         if (pattern[d] === 1) {
           const px = dotPositions[d].x;
           const py = dotPositions[d].y;
-          gcode += `G0 Z${settings.safeZ}\n`;
-          gcode += `G0 X${px.toFixed(2)} Y${py.toFixed(2)} F${settings.feedRate}\n`;
-          gcode += `G1 Z-${settings.dotDepth.toFixed(2)} F${settings.drillRate}\n`;
-          gcode += `G0 Z${settings.safeZ}\n`;
+          gcode += `G1 X${px.toFixed(2)} Y${py.toFixed(2)} F${settings.feedRate}\n`;
+          gcode += punchGcode(settings);
         }
       }
     }
   }
 
-  gcode += `G0 Z20   ; Safe height
-G28 X0 Y0 ; Park
-M2       ; End program
+  gcode += `G1 X0 Y0 F${settings.feedRate}  ; Back to work zero
+M400     ; Wait until all moves finish
 `;
 
   return gcode;

@@ -14,12 +14,12 @@ interface SettingsProps {
 
 const FIELDS: { name: keyof GcodeSettings; label: string; unit: string; step?: number }[] = [
   { name: 'dotSpacing', label: 'Dot spacing', unit: 'mm', step: 0.1 },
-  { name: 'dotDepth', label: 'Dot depth', unit: 'mm', step: 0.1 },
+  { name: 'dotDepth', label: 'Punch depth (− = +Z)', unit: 'mm', step: 0.1 },
   { name: 'startX', label: 'Start X', unit: 'mm' },
   { name: 'startY', label: 'Start Y', unit: 'mm' },
   { name: 'feedRate', label: 'Feed rate', unit: 'mm/min', step: 50 },
-  { name: 'drillRate', label: 'Drill rate', unit: 'mm/min', step: 50 },
-  { name: 'safeZ', label: 'Safe Z', unit: 'mm', step: 0.5 },
+  { name: 'drillRate', label: 'Punch speed', unit: 'mm/min', step: 50 },
+  { name: 'safeZ', label: 'Z rest', unit: 'mm', step: 0.5 },
 ];
 
 export default function Settings({ isOpen, onClose, settings, onSettingsChange, geminiKey, onKeyChange }: SettingsProps) {

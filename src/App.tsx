@@ -8,6 +8,7 @@ import Settings from "./components/Settings/Settings";
 import OcrResult from "./components/OcrResult/OcrResult";
 import BrailleOutput from "./components/BrailleOutput/BrailleOutput";
 import GcodeOutput from "./components/GcodeOutput/GcodeOutput";
+import PrinterControl from "./components/PrinterControl/PrinterControl";
 import { textToBraille } from "./utils/braille";
 import { brailleToGcode, GcodeSettings } from "./utils/gcode";
 import styles from "./App.module.css";
@@ -346,6 +347,8 @@ export default function App() {
               </ol>
             </div>
           )}
+
+          <PrinterControl gcode={gcodeText} settings={settings} />
         </section>
       </main>
     </div>

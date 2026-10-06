@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "bridge": "python server/bridge.py",
+    "start": "vite build && python server/bridge.py"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

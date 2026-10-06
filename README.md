@@ -70,6 +70,16 @@ http://localhost:3000
 
 Note: This project currently reads the Gemini key from the UI (saved to localStorage), not from `.env.local`.
 
+## Sending G-code to the printer
+
+The Arduino (Marlin, COM3) is driven through a small Python USB bridge. Setup and calibration: [firmware/README.md](firmware/README.md).
+
+1. Once: `python -m pip install -r server/requirements.txt`
+2. Run the bridge: `npm run bridge` (keep it open), and the app: `npm run dev` or `npm run phone`. Vite proxies `/api` to the bridge, so a phone works too.
+3. In the **Printer** card: **Connect** → jog the head to the paper corner → **Set zero here** → **Print**. **Stop** resets the Arduino immediately.
+
+`npm start` builds the app and serves it from the bridge at http://localhost:3001 (no Vite needed).
+
 ## Using it from a phone
 
 1. Connect the phone and the computer to the same Wi-Fi.
@@ -83,6 +93,8 @@ If the page doesn't open, allow Node.js through Windows Firewall (private networ
 
 - `npm run dev` - Run Vite dev server on port 3000
 - `npm run phone` - Same, over HTTPS for phone camera access
+- `npm run bridge` - USB bridge to the printer (port 3001)
+- `npx tsx scripts/check.ts` - G-code generator self-check
 - `npm run build` - Create production build
 - `npm run preview` - Preview production build locally
 - `npm run lint` - Type-check with TypeScript (`tsc --noEmit`)
