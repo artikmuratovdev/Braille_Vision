@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { GoogleGenAI } from "@google/genai/web";
+import { Camera, Download, Grip, KeyRound, LoaderCircle, Settings as SettingsIcon, Sparkles, TriangleAlert, Upload } from "lucide-react";
 import CameraCapture from "./components/CameraCapture/CameraCapture";
 import FileUpload from "./components/FileUpload/FileUpload";
 import Pipeline from "./components/Pipeline/Pipeline";
@@ -14,10 +15,11 @@ import styles from "./App.module.css";
 type PipelineState = "idle" | "loading" | "done" | "error";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"camera" | "file">("camera");
-  const [mobileResultTab, setMobileResultTab] = useState<
-    "ocr" | "braille" | "gcode"
-  >("ocr");
+  // Without HTTPS (phone over plain Wi-Fi) the live camera is blocked, so start on Upload.
+  const [activeTab, setActiveTab] = useState<"camera" | "file">(
+    navigator.mediaDevices?.getUserMedia ? "camera" : "file",
+  );
+  const [resultTab, setResultTab] = useState<"ocr" | "braille" | "gcode">("ocr");
   const [imageData, setImageData] = useState<{
     base64: string;
     mimeType: string;
@@ -159,6 +161,10 @@ export default function App() {
       const gcode = brailleToGcode(braille, settings);
       setGcodeText(gcode);
       setPipeline((prev) => ({ ...prev, gcode: "done" }));
+      setResultTab("ocr");
+      // Phones: results sit below the photo, bring them into view.
+      if (matchMedia("(max-width: 1023px)").matches)
+        document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to process image.");
@@ -187,63 +193,72 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+
   const isGcodeReady = pipeline.gcode === "done" && !!gcodeText;
+  const isLoading = pipeline.ocr === "loading";
+  const resultTabs = [
+    { id: "ocr", label: "Text" },
+    { id: "braille", label: "Braille" },
+    { id: "gcode", label: "G-code" },
+  ] as const;
 
   return (
-    <div className={styles.appWrapper}>
+    <div className={styles.app}>
       <header className={styles.header}>
-        <h1 className={styles.logo}>BRAILLE·OCR</h1>
+        <div className={styles.brand}>
+          <span className={styles.brandMark} aria-hidden="true">
+            <Grip size={20} />
+          </span>
+          <span className={styles.brandName}>Braille Vision</span>
+        </div>
         <button
-          className={styles.settingsBtn}
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+          className={styles.iconBtn}
+          onClick={() => setIsSettingsOpen(true)}
+          aria-label="Settings"
         >
-          ⚙
+          <SettingsIcon size={20} />
         </button>
       </header>
 
       <Settings
         isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSettingsChange={handleSettingsChange}
         geminiKey={geminiKey}
         onKeyChange={handleKeyChange}
       />
 
-      <main className={styles.main}>
-        {!geminiKey && (
-          <div className={styles.warningBanner}>
-            <div style={{ marginBottom: "8px" }}>
-              ⚠️ Please enter your Gemini API key to continue.
+      <main className={styles.layout}>
+        <section className={styles.inputCol} aria-label="Input">
+          {!geminiKey && (
+            <div className={styles.keyBanner}>
+              <KeyRound size={20} />
+              <div>
+                <strong>Add your Gemini API key</strong>
+                <p>Needed to read text from photos. It stays on this device.</p>
+              </div>
+              <button className={styles.keyBtn} onClick={() => setIsSettingsOpen(true)}>
+                Add key
+              </button>
             </div>
-            <input
-              type="password"
-              placeholder="AIzaSy..."
-              value={geminiKey}
-              onChange={(e) => handleKeyChange(e.target.value)}
-              className={styles.apiKeyInput}
-            />
-            <div style={{ marginTop: "8px", fontSize: "12px" }}>
-              <a
-                href="https://aistudio.google.com/apikey"
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: "var(--accent)" }}
-              >
-                Get API key →
-              </a>
-            </div>
-          </div>
-        )}
+          )}
 
-        <div className={styles.dashboardGrid}>
-          <section className={styles.capturePanel}>
-            <div className={styles.panelHeader}>
-              <span>INPUT</span>
+          <div className={styles.card}>
+            <div className={styles.segmented} role="tablist" aria-label="Input source">
               <button
-                className={styles.switch}
-                onClick={() => setActiveTab(activeTab === "file" ? "camera":"file")}
+                role="tab"
+                aria-selected={activeTab === "camera"}
+                onClick={() => setActiveTab("camera")}
               >
-                {activeTab === "file" ? "📷 Camera":"📁 File"}
+                <Camera size={16} /> Camera
+              </button>
+              <button
+                role="tab"
+                aria-selected={activeTab === "file"}
+                onClick={() => setActiveTab("file")}
+              >
+                <Upload size={16} /> Upload
               </button>
             </div>
 
@@ -255,91 +270,83 @@ export default function App() {
 
             <Pipeline state={pipeline} />
 
-            {error && <div className={styles.errorBanner}>{error}</div>}
+            {error && (
+              <div className={styles.errorBanner} role="alert">
+                <TriangleAlert size={18} /> {error}
+              </div>
+            )}
 
-            <button
-              className={`${styles.processBtn} ${pipeline.ocr === "loading" ? styles.loading : ""}`}
-              onClick={isGcodeReady ? handleDownloadGcode : handleProcess}
-              disabled={!imageData || pipeline.ocr === "loading"}
-            >
-              {pipeline.ocr === "loading" ? (
-                <>
-                  <span className={styles.spinner}></span>
-                  PROCESSING...
-                </>
-              ) : isGcodeReady ? (
-                "DOWNLOAD G-CODE"
-              ) : (
-                "PROCESS IMAGE"
-              )}
-            </button>
-          </section>
-
-          <section className={`${styles.outputPanel} ${styles.desktopPanel}`}>
-            <div className={styles.panelHeader}>BRAILLE OUTPUT</div>
-            <BrailleOutput originalText={ocrText} />
-          </section>
-
-          <section className={`${styles.ocrPanel} ${styles.desktopPanel}`}>
-            <div className={styles.panelHeader}>OCR TEXT</div>
-            <OcrResult text={ocrText} onChange={handleOcrChange} />
-            <GcodeOutput
-              gcode={gcodeText}
-              brailleText={brailleText}
-              settings={settings}
-            />
-          </section>
-
-          <section
-            className={`${styles.mobileResultPanel} ${styles.mobileOnly}`}
-          >
-            <div className={styles.mobileResultTabs}>
+            <div className={styles.actionBar}>
               <button
-                className={`${styles.mobileResultTab} ${mobileResultTab === "ocr" ? styles.activeMobileResultTab : ""}`}
-                onClick={() => setMobileResultTab("ocr")}
+                className={styles.primaryBtn}
+                onClick={isGcodeReady ? handleDownloadGcode : handleProcess}
+                disabled={!imageData || isLoading}
               >
-                OCR TEXT
-              </button>
-              <button
-                className={`${styles.mobileResultTab} ${mobileResultTab === "braille" ? styles.activeMobileResultTab : ""}`}
-                onClick={() => setMobileResultTab("braille")}
-              >
-                BRAILLE OUTPUT
-              </button>
-              <button
-                className={`${styles.mobileResultTab} ${mobileResultTab === "gcode" ? styles.activeMobileResultTab : ""}`}
-                onClick={() => setMobileResultTab("gcode")}
-              >
-                G-CODE
+                {isLoading ? (
+                  <>
+                    <LoaderCircle size={20} className={styles.spin} /> Reading text…
+                  </>
+                ) : isGcodeReady ? (
+                  <>
+                    <Download size={20} /> Download G-code
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={20} /> Convert to Braille
+                  </>
+                )}
               </button>
             </div>
+          </div>
+        </section>
 
-            {mobileResultTab === "ocr" && (
-              <>
-                <div className={styles.panelHeader}>OCR TEXT</div>
-                <OcrResult text={ocrText} onChange={handleOcrChange} />
-              </>
-            )}
+        <section id="results" className={styles.resultsCol} aria-label="Results">
+          {ocrText ? (
+            <>
+              <div className={`${styles.segmented} ${styles.resultTabs}`} role="tablist" aria-label="Result view">
+                {resultTabs.map((t) => (
+                  <button
+                    key={t.id}
+                    role="tab"
+                    aria-selected={resultTab === t.id}
+                    onClick={() => setResultTab(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
 
-            {mobileResultTab === "braille" && (
-              <>
-                <div className={styles.panelHeader}>BRAILLE OUTPUT</div>
-                <BrailleOutput originalText={ocrText} />
-              </>
-            )}
-
-            {mobileResultTab === "gcode" && (
-              <>
-                <div className={styles.panelHeader}>G-CODE</div>
-                <GcodeOutput
-                  gcode={gcodeText}
-                  brailleText={brailleText}
-                  settings={settings}
-                />
-              </>
-            )}
-          </section>
-        </div>
+              <div className={styles.results}>
+                <div className={styles.result} data-active={resultTab === "ocr"} data-area="ocr">
+                  <OcrResult text={ocrText} onChange={handleOcrChange} />
+                </div>
+                <div className={styles.result} data-active={resultTab === "braille"} data-area="braille">
+                  <BrailleOutput originalText={ocrText} />
+                </div>
+                {gcodeText && (
+                  <div className={styles.result} data-active={resultTab === "gcode"} data-area="gcode">
+                    <GcodeOutput
+                      gcode={gcodeText}
+                      brailleText={brailleText}
+                      settings={settings}
+                      onDownload={handleDownloadGcode}
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className={styles.empty}>
+              <span className={styles.emptyMark} aria-hidden="true">⠃⠧</span>
+              <h2>Photo → Braille in one tap</h2>
+              <ol>
+                <li>Take a photo of a printed page or upload one</li>
+                <li>Press <strong>Convert to Braille</strong></li>
+                <li>Check the text, then download the G-code</li>
+              </ol>
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );

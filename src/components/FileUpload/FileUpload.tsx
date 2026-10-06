@@ -1,98 +1,89 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import { ImagePlus, X } from 'lucide-react';
 import { resizeImage } from '../../utils/imageUtils';
 import styles from './FileUpload.module.css';
 
 interface FileUploadProps {
-  onUpload: (data: { base64: string, mimeType: string, previewUrl: string }) => void;
+  onUpload: (data: { base64: string; mimeType: string; previewUrl: string }) => void;
 }
 
 export default function FileUpload({ onUpload }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [preview, setPreview] = useState<{ url: string, name: string, size: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string; size: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      await processFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      await processFile(e.target.files[0]);
-    }
-  };
-
-  const processFile = async (file: File) => {
+  const processFile = async (file?: File) => {
+    if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file.');
+      setError('Please choose an image file.');
       return;
     }
     try {
-      const { base64, mimeType, previewUrl } = await resizeImage(file, 1280);
-      setPreview({
-        url: previewUrl,
-        name: file.name,
-        size: (file.size / 1024).toFixed(1) + ' KB'
-      });
+      const { base64, mimeType, previewUrl } = await resizeImage(file, 1600);
+      setError(null);
+      setPreview({ url: previewUrl, name: file.name, size: `${(file.size / 1024).toFixed(0)} KB` });
       onUpload({ base64, mimeType, previewUrl });
     } catch (err) {
       console.error(err);
-      alert('Error processing image.');
+      setError('Could not read this image.');
     }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    processFile(e.dataTransfer.files?.[0]);
   };
 
   const handleRemove = () => {
     setPreview(null);
     onUpload({ base64: '', mimeType: '', previewUrl: '' });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (inputRef.current) inputRef.current.value = '';
   };
 
+  if (preview) {
+    return (
+      <div className={styles.preview}>
+        <img src={preview.url} alt="Selected page" />
+        <div className={styles.info}>
+          <span className={styles.name}>{preview.name}</span>
+          <span className={styles.size}>{preview.size}</span>
+          <button className={styles.remove} onClick={handleRemove} aria-label="Remove image">
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div 
-      className={`${styles.container} ${isDragging ? styles.dragging : ''}`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
+    <label
+      className={`${styles.dropzone} ${isDragging ? styles.dragging : ''}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragging(true);
+      }}
+      onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
-      onClick={() => !preview && fileInputRef.current?.click()}
     >
-      <input 
-        type="file" 
-        accept="image/*" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-        className={styles.hiddenInput} 
+      {/* On phones this input offers both the camera and the gallery. */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className={styles.input}
+        onChange={(e) => processFile(e.target.files?.[0])}
       />
-      
-      {preview ? (
-        <div className={styles.previewContainer}>
-          <img src={preview.url} alt="Preview" className={styles.preview} />
-          <div className={styles.fileInfo}>
-            <span>{preview.name} ({preview.size})</span>
-            <button className={styles.removeBtn} onClick={(e) => { e.stopPropagation(); handleRemove(); }}>
-              Remove
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className={styles.emptyState}>
-          <div className={styles.icon}>📁</div>
-          <p>Click or drag image here to upload</p>
-        </div>
-      )}
-    </div>
+      <span className={styles.icon}>
+        <ImagePlus size={28} />
+      </span>
+      <span className={styles.primary}>
+        <span className={styles.touchOnly}>Take a photo or choose from gallery</span>
+        <span className={styles.pointerOnly}>Drop an image here or click to browse</span>
+      </span>
+      <span className={styles.secondary}>A clear, well-lit page works best</span>
+      {error && <span className={styles.error}>{error}</span>}
+    </label>
   );
 }

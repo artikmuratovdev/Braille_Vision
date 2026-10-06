@@ -70,9 +70,19 @@ http://localhost:3000
 
 Note: This project currently reads the Gemini key from the UI (saved to localStorage), not from `.env.local`.
 
+## Using it from a phone
+
+1. Connect the phone and the computer to the same Wi-Fi.
+2. Run `npm run phone`. It starts Vite with a self-signed HTTPS certificate, because browsers block the live camera on plain HTTP.
+3. Open the `Network: https://<ip>:3000` URL that Vite prints. Accept the certificate warning once (Advanced → Proceed).
+4. Paste the Gemini API key in Settings. It is stored per device.
+
+If the page doesn't open, allow Node.js through Windows Firewall (private networks). Without HTTPS (`npm run dev`) the Upload tab still works, and it opens the phone's camera too.
+
 ## Available scripts
 
 - `npm run dev` - Run Vite dev server on port 3000
+- `npm run phone` - Same, over HTTPS for phone camera access
 - `npm run build` - Create production build
 - `npm run preview` - Preview production build locally
 - `npm run lint` - Type-check with TypeScript (`tsc --noEmit`)

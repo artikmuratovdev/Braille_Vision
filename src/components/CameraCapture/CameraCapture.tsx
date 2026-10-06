@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { RefreshCw, TriangleAlert } from 'lucide-react';
 import styles from './CameraCapture.module.css';
 
 interface CameraCaptureProps {
-  onCapture: (data: { base64: string, mimeType: string, previewUrl: string }) => void;
+  onCapture: (data: { base64: string; mimeType: string; previewUrl: string }) => void;
 }
 
 export default function CameraCapture({ onCapture }: CameraCaptureProps) {
@@ -11,48 +12,40 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    if (capturedUrl) return;
+    // Browsers only expose the camera on HTTPS or localhost.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Live camera needs HTTPS. Start the app with "npm run phone", or use Upload.');
+      return;
+    }
+
     let stream: MediaStream | null = null;
-
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width: 1280, height: 720 }
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err: any) {
-        setError('Could not access camera. Please allow camera permissions.');
-      }
-    }
-
-    if (!capturedUrl) {
-      startCamera();
-    }
+    let cancelled = false;
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } })
+      .then((s) => {
+        if (cancelled) return s.getTracks().forEach((t) => t.stop());
+        stream = s;
+        if (videoRef.current) videoRef.current.srcObject = s;
+      })
+      .catch(() => setError('Could not access the camera. Allow camera permission, or use Upload.'));
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      cancelled = true;
+      stream?.getTracks().forEach((t) => t.stop());
     };
   }, [capturedUrl]);
 
   const handleCapture = () => {
-    if (!videoRef.current) return;
     const video = videoRef.current;
+    if (!video?.videoWidth) return;
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    const mimeType = 'image/jpeg';
-    const dataUrl = canvas.toDataURL(mimeType, 0.88);
-    const base64 = dataUrl.split(',')[1];
-    
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
     setCapturedUrl(dataUrl);
-    onCapture({ base64, mimeType, previewUrl: dataUrl });
+    onCapture({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', previewUrl: dataUrl });
   };
 
   const handleRetake = () => {
@@ -61,21 +54,29 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   };
 
   if (error) {
-    return <div className={styles.error}>{error}</div>;
+    return (
+      <div className={styles.error} role="alert">
+        <TriangleAlert size={28} />
+        <p>{error}</p>
+      </div>
+    );
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.frame}>
       {capturedUrl ? (
-        <div className={styles.previewContainer}>
-          <img src={capturedUrl} alt="Captured" className={styles.preview} />
-          <button className={styles.retakeBtn} onClick={handleRetake}>Retake</button>
-        </div>
+        <>
+          <img src={capturedUrl} alt="Captured page" className={styles.media} />
+          <button className={styles.retake} onClick={handleRetake}>
+            <RefreshCw size={16} /> Retake
+          </button>
+        </>
       ) : (
-        <div className={styles.videoContainer}>
-          <video ref={videoRef} autoPlay playsInline className={styles.video} />
-          <button className={styles.captureBtn} onClick={handleCapture}>Capture</button>
-        </div>
+        <>
+          <video ref={videoRef} autoPlay playsInline muted className={styles.media} />
+          <div className={styles.guide} aria-hidden="true" />
+          <button className={styles.shutter} onClick={handleCapture} aria-label="Take photo" />
+        </>
       )}
     </div>
   );

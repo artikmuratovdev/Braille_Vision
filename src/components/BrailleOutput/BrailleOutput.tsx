@@ -1,41 +1,35 @@
+import { Grip } from 'lucide-react';
 import { brailleToOriginalMap } from '../../utils/braille';
+import CopyButton from '../CopyButton';
+import ui from '../ui.module.css';
 import styles from './BrailleOutput.module.css';
 
-interface BrailleOutputProps {
-  originalText: string;
-}
-
-export default function BrailleOutput({ originalText }: BrailleOutputProps) {
-  if (!originalText) return null;
-
+export default function BrailleOutput({ originalText }: { originalText: string }) {
   const map = brailleToOriginalMap(originalText);
-  const cellCount = map.filter(m => m.braille !== '\n').length;
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(map.map(m => m.braille).join(''));
-  };
+  const cellCount = map.filter((m) => m.braille !== '\n').length;
 
   return (
-    <div className={styles.card}>
-      <div className={styles.header}>
-        <span className={styles.title}>Braille Output</span>
-        <div className={styles.actions}>
-          <span className={styles.stats}>{cellCount} cells</span>
-          <button className={styles.copyBtn} onClick={handleCopy}>Copy</button>
+    <div className={ui.card}>
+      <div className={ui.cardHeader}>
+        <span className={ui.title}>
+          <Grip size={18} className={ui.titleIcon} /> Braille
+        </span>
+        <div className={ui.actions}>
+          <span className={ui.meta}>{cellCount} cells</span>
+          <CopyButton text={map.map((m) => m.braille).join('')} />
         </div>
       </div>
       <div className={styles.content}>
-        {map.map((item, index) => {
-          if (item.braille === '\n') {
-            return <div key={index} style={{ flexBasis: '100%', height: '8px' }} />;
-          }
-          return (
-            <div key={index} className={styles.charContainer}>
-              <span className={styles.brailleChar}>{item.braille}</span>
-              <span className={styles.originalChar}>{item.original === ' ' ? '␣' : item.original}</span>
+        {map.map((item, index) =>
+          item.braille === '\n' ? (
+            <div key={index} className={styles.break} />
+          ) : (
+            <div key={index} className={styles.cell}>
+              <span className={styles.braille}>{item.braille}</span>
+              <span className={styles.original}>{item.original === ' ' ? '␣' : item.original}</span>
             </div>
-          );
-        })}
+          ),
+        )}
       </div>
     </div>
   );

@@ -1,3 +1,6 @@
+import { ScanText } from 'lucide-react';
+import CopyButton from '../CopyButton';
+import ui from '../ui.module.css';
 import styles from './OcrResult.module.css';
 
 interface OcrResultProps {
@@ -6,27 +9,25 @@ interface OcrResultProps {
 }
 
 export default function OcrResult({ text, onChange }: OcrResultProps) {
-  if (!text) return null;
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-  };
-
   return (
-    <div className={styles.card}>
-      <div className={styles.header}>
-        <span className={styles.title}>OCR Result</span>
-        <div className={styles.actions}>
-          <span className={styles.stats}>{text.length} chars</span>
-          <button className={styles.copyBtn} onClick={handleCopy}>Copy</button>
+    <div className={ui.card}>
+      <div className={ui.cardHeader}>
+        <span className={ui.title}>
+          <ScanText size={18} className={ui.titleIcon} /> Recognized text
+        </span>
+        <div className={ui.actions}>
+          <span className={ui.meta}>{text.length} chars</span>
+          <CopyButton text={text} />
         </div>
       </div>
       <textarea
         className={styles.textarea}
         value={text}
         onChange={(e) => onChange(e.target.value)}
-        rows={5}
+        aria-label="Recognized text (editable)"
+        spellCheck={false}
       />
+      <p className={styles.hint}>Edit the text to fix OCR mistakes — Braille and G-code update live.</p>
     </div>
   );
 }

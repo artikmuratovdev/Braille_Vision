@@ -1,66 +1,25 @@
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  animation: slide-up 300ms ease-out;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.title {
-  font-weight: bold;
-  color: var(--text);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.stats {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.copyBtn {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--accent);
-  padding: 4px 8px;
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.copyBtn:hover {
-  background: rgba(0, 212, 170, 0.1);
-}
-
 .textarea {
+  display: block;
   width: 100%;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 12px;
-  border-radius: 4px;
+  min-height: 180px;
+  max-height: 50vh;
+  padding: 16px;
+  border: none;
+  background: transparent;
+  font-size: 16px; /* 16px stops iOS from zooming on focus */
+  line-height: 1.6;
   resize: vertical;
-  font-size: 14px;
-  transition: border-color 0.2s;
+  field-sizing: content;
 }
 
 .textarea:focus {
   outline: none;
-  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.hint {
+  padding: 10px 16px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
 }

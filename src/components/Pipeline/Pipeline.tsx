@@ -1,3 +1,4 @@
+import { Camera, Check, FileCode, Grip, LoaderCircle, ScanText, X } from 'lucide-react';
 import styles from './Pipeline.module.css';
 
 interface PipelineProps {
@@ -11,29 +12,30 @@ interface PipelineProps {
 
 export default function Pipeline({ state }: PipelineProps) {
   const steps = [
-    { id: 'capture', label: 'Capture', icon: '📷', status: state.capture },
-    { id: 'ocr', label: 'OCR', icon: '🔍', status: state.ocr },
-    { id: 'braille', label: 'Braille', icon: '⠿', status: state.braille },
-    { id: 'gcode', label: 'G-code', icon: '⚙', status: state.gcode }
+    { label: 'Photo', Icon: Camera, status: state.capture },
+    { label: 'Text', Icon: ScanText, status: state.ocr },
+    { label: 'Braille', Icon: Grip, status: state.braille },
+    { label: 'G-code', Icon: FileCode, status: state.gcode },
   ];
 
   return (
-    <div className={styles.container}>
-      {steps.map((step, index) => (
-        <div key={step.id} className={styles.stepWrapper}>
-          <div className={`${styles.step} ${styles[step.status]}`}>
-            <div className={styles.iconContainer}>
-              <span className={styles.icon}>{step.icon}</span>
-              {step.status === 'done' && <span className={styles.badge}>✓</span>}
-              {step.status === 'error' && <span className={`${styles.badge} ${styles.errorBadge}`}>✕</span>}
-            </div>
-            <span className={styles.label}>{step.label}</span>
-          </div>
-          {index < steps.length - 1 && (
-            <div className={`${styles.line} ${steps[index + 1].status !== 'idle' ? styles.lineActive : ''}`} />
-          )}
-        </div>
+    <ol className={styles.steps} aria-label="Progress">
+      {steps.map(({ label, Icon, status }) => (
+        <li key={label} className={`${styles.step} ${styles[status]}`}>
+          <span className={styles.dot}>
+            {status === 'done' ? (
+              <Check size={16} strokeWidth={3} />
+            ) : status === 'loading' ? (
+              <LoaderCircle size={16} className={styles.spin} />
+            ) : status === 'error' ? (
+              <X size={16} strokeWidth={3} />
+            ) : (
+              <Icon size={16} />
+            )}
+          </span>
+          <span className={styles.label}>{label}</span>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }

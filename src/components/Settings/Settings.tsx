@@ -1,84 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { KeyRound, X } from 'lucide-react';
+import { GcodeSettings } from '../../utils/gcode';
 import styles from './Settings.module.css';
 
 interface SettingsProps {
   isOpen: boolean;
-  settings: any;
-  onSettingsChange: (newSettings: any) => void;
+  onClose: () => void;
+  settings: GcodeSettings;
+  onSettingsChange: (newSettings: GcodeSettings) => void;
   geminiKey: string;
   onKeyChange: (key: string) => void;
 }
 
-export default function Settings({ isOpen, settings, onSettingsChange, geminiKey, onKeyChange }: SettingsProps) {
+const FIELDS: { name: keyof GcodeSettings; label: string; unit: string; step?: number }[] = [
+  { name: 'dotSpacing', label: 'Dot spacing', unit: 'mm', step: 0.1 },
+  { name: 'dotDepth', label: 'Dot depth', unit: 'mm', step: 0.1 },
+  { name: 'startX', label: 'Start X', unit: 'mm' },
+  { name: 'startY', label: 'Start Y', unit: 'mm' },
+  { name: 'feedRate', label: 'Feed rate', unit: 'mm/min', step: 50 },
+  { name: 'drillRate', label: 'Drill rate', unit: 'mm/min', step: 50 },
+  { name: 'safeZ', label: 'Safe Z', unit: 'mm', step: 0.5 },
+];
+
+export default function Settings({ isOpen, onClose, settings, onSettingsChange, geminiKey, onKeyChange }: SettingsProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const [localKey, setLocalKey] = useState(geminiKey);
 
-  useEffect(() => {
-    setLocalKey(geminiKey);
-  }, [geminiKey]);
+  useEffect(() => setLocalKey(geminiKey), [geminiKey]);
 
-  const handleKeyBlur = () => {
-    onKeyChange(localKey);
-  };
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (isOpen && !dialog?.open) dialog?.showModal();
+    if (!isOpen && dialog?.open) dialog.close();
+  }, [isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    onSettingsChange({
-      ...settings,
-      [name]: parseFloat(value) || 0
-    });
+    onSettingsChange({ ...settings, [e.target.name]: parseFloat(e.target.value) || 0 });
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className={styles.panel}>
-      <div className={styles.section}>
-        <label className={styles.label}>
-          Gemini API Key
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className={styles.link}>
-            Get API key →
-          </a>
-        </label>
-        <input
-          type="password"
-          className={styles.input}
-          value={localKey}
-          onChange={(e) => setLocalKey(e.target.value)}
-          onBlur={handleKeyBlur}
-          placeholder="AIzaSy..."
-        />
+    <dialog
+      ref={dialogRef}
+      className={styles.sheet}
+      onClose={() => {
+        onKeyChange(localKey);
+        onClose();
+      }}
+      // Click on the backdrop closes the sheet
+      onClick={(e) => e.target === dialogRef.current && dialogRef.current.close()}
+      aria-labelledby="settings-title"
+    >
+      <div className={styles.header}>
+        <h2 id="settings-title">Settings</h2>
+        <button className={styles.close} onClick={() => dialogRef.current?.close()} aria-label="Close settings">
+          <X size={20} />
+        </button>
       </div>
 
-      <div className={styles.grid}>
-        <div className={styles.field}>
-          <label className={styles.label}>Dot Spacing (mm)</label>
-          <input type="number" name="dotSpacing" min="1" max="6" step="0.5" value={settings.dotSpacing} onChange={handleChange} className={styles.input} />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label}>Drill Depth (mm)</label>
-          <input type="number" name="dotDepth" min="0.1" max="3" step="0.1" value={settings.dotDepth} onChange={handleChange} className={styles.input} />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label}>Start X (mm)</label>
-          <input type="number" name="startX" min="0" max="300" value={settings.startX} onChange={handleChange} className={styles.input} />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label}>Start Y (mm)</label>
-          <input type="number" name="startY" min="0" max="300" value={settings.startY} onChange={handleChange} className={styles.input} />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label}>Feed Rate (mm/min)</label>
-          <input type="number" name="feedRate" value={settings.feedRate} onChange={handleChange} className={styles.input} />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label}>Drill Rate (mm/min)</label>
-          <input type="number" name="drillRate" value={settings.drillRate} onChange={handleChange} className={styles.input} />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label}>Safe Z (mm)</label>
-          <input type="number" name="safeZ" value={settings.safeZ} onChange={handleChange} className={styles.input} />
-        </div>
+      <div className={styles.body}>
+        <section className={styles.section}>
+          <label className={styles.label} htmlFor="gemini-key">
+            <KeyRound size={16} /> Gemini API key
+          </label>
+          <input
+            id="gemini-key"
+            type="password"
+            autoComplete="off"
+            className={styles.input}
+            value={localKey}
+            onChange={(e) => setLocalKey(e.target.value)}
+            onBlur={() => onKeyChange(localKey)}
+            placeholder="AIzaSy..."
+          />
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className={styles.link}>
+            Get a free API key →
+          </a>
+        </section>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Machine</h3>
+          <div className={styles.grid}>
+            {FIELDS.map(({ name, label, unit, step }) => (
+              <label key={name} className={styles.field}>
+                <span className={styles.fieldLabel}>{label}</span>
+                <span className={styles.inputWrap}>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    name={name}
+                    step={step ?? 1}
+                    value={settings[name]}
+                    onChange={handleChange}
+                    className={styles.input}
+                  />
+                  <span className={styles.unit}>{unit}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
       </div>
-    </div>
+    </dialog>
   );
 }
