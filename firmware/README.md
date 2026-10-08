@@ -118,3 +118,19 @@ M204 S4000 T4000
 | X−/Y− yurmaydi | Nol nuqtadan pastga — Marlin ruxsat bermaydi. Uzish → Ulash qiling |
 | Z umuman qimirlamaydi | `Punch Depth` ishorasini almashtiring yoki `Z Rest` ni oshiring |
 | Buyruq "osilib" qoldi | **To'xtatish** → Uzish → Ulash |
+
+## Lazer stanok (Makeblock mLaser yoki GRBL)
+
+Settings → **Firmware**:
+- **Makeblock mLaser — laser**: mLaser dasturi bilan kelgan stanok (Makeblock'ning Marlin 1.0.2 proshivkasi, `M115` → `Marlin 1.0.2+`). Lazer `M4 P0..255` bilan boshqariladi (mLaser'ning `firsttest.gcode` namunasidan olingan). Har bir nuqta: `M400` → `M4 P<quvvat>` → `G4 P<ms>` → `M4 P0`.
+- **GRBL — laser**: GRBL 1.1 stanoklar (`$I` → `[VER:1.1...]`). Har bir nuqta: `M3 S<quvvat>` → `G4 P<soniya>` → `M5`.
+
+**Laser power** (%) va **Laser time per dot** (ms) ni **Test dot (laser)** bilan qog'oz parchasida tanlang. Boshlash: 30–50 %, 50–100 ms.
+
+1. **mLaser'ni yoping** (u portni band qiladi). Printer panelida portni tanlang (↻ ro'yxatni yangilaydi). Tanlov eslab qolinadi.
+2. **Connect** → Console'da `M115` (Marlin/mLaser) yoki `$I` (GRBL) bilan proshivkani tekshiring.
+3. GRBL: `ALARM` yoki `error:9` chiqsa — **Unlock ($X)**. Nuqta kuymasa va `$32=1` bo'lsa, `$32=0` bilan sinang.
+
+Terminaldan: `python server/run_gcode.py fayl.gcode --port COM4`
+
+> Lazer qog'ozni **kuydiradi** — barmoq bilan seziladigan bo'rtiq nuqta chiqmaydi. Ko'zoynak taqing, stanokni qarovsiz qoldirmang.

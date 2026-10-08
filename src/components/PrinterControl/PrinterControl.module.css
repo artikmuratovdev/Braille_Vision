@@ -35,6 +35,39 @@
   gap: 8px;
 }
 
+.portRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.portRow .select {
+  min-height: 40px;
+  min-width: 0;
+  padding: 0 8px;
+  text-align: left;
+}
+
+.fileRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.fileRow > label {
+  cursor: pointer;
+}
+
+.fileName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
 .mainRow > button {
   min-height: 46px;
   font-size: 14px;

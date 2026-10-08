@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { GoogleGenAI } from "@google/genai/web";
-import { Camera, Download, Grip, KeyRound, LoaderCircle, Settings as SettingsIcon, Sparkles, TriangleAlert, Upload } from "lucide-react";
+import { createWorker } from "tesseract.js";
+import { Camera, Download, Grip, LoaderCircle, Settings as SettingsIcon, Sparkles, TriangleAlert, Upload } from "lucide-react";
 import CameraCapture from "./components/CameraCapture/CameraCapture";
 import FileUpload from "./components/FileUpload/FileUpload";
 import Pipeline from "./components/Pipeline/Pipeline";
@@ -10,10 +10,47 @@ import BrailleOutput from "./components/BrailleOutput/BrailleOutput";
 import GcodeOutput from "./components/GcodeOutput/GcodeOutput";
 import PrinterControl from "./components/PrinterControl/PrinterControl";
 import { textToBraille } from "./utils/braille";
-import { brailleToGcode, GcodeSettings } from "./utils/gcode";
+import { brailleToGcode, DEFAULT_SETTINGS, GcodeSettings } from "./utils/gcode";
 import styles from "./App.module.css";
 
 type PipelineState = "idle" | "loading" | "done" | "error";
+
+// One worker per page: language data (~10 MB) downloads once, then is cached in IndexedDB.
+let tesseractWorker: ReturnType<typeof createWorker> | null = null;
+async function tesseractOcr(previewUrl: string) {
+  tesseractWorker ??= createWorker("uzb+rus+eng");
+  const worker = await tesseractWorker;
+  // onload, not img.decode(): decode() never settles while the tab is in the background.
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error("Could not load the image."));
+    i.src = previewUrl;
+  });
+
+  // Tesseract only reads upright text (rotateAuto fixes small tilt), so try each quarter turn and keep the surest.
+  // ponytail: up to 4 passes on sideways photos; switch to worker.detect() (needs legacy OSD model) if too slow.
+  let best = { text: "", confidence: -1 };
+  for (const turns of [0, 1, 3, 2]) {
+    const { data } = await worker.recognize(rotate(img, turns), { rotateAuto: true });
+    if (data.confidence > best.confidence) best = { text: data.text.trim(), confidence: data.confidence };
+    if (best.confidence >= 75) break;
+  }
+  return best.text;
+}
+
+// Draws the image turned by `turns` × 90° clockwise; drawImage also applies the photo's EXIF orientation.
+function rotate(img: HTMLImageElement, turns: number) {
+  const canvas = document.createElement("canvas");
+  const swap = turns % 2 === 1;
+  canvas.width = swap ? img.naturalHeight : img.naturalWidth;
+  canvas.height = swap ? img.naturalWidth : img.naturalHeight;
+  const ctx = canvas.getContext("2d")!;
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((turns * Math.PI) / 2);
+  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+  return canvas;
+}
 
 export default function App() {
   // Without HTTPS (phone over plain Wi-Fi) the live camera is blocked, so start on Upload.
@@ -26,7 +63,6 @@ export default function App() {
     mimeType: string;
     previewUrl: string;
   } | null>(null);
-  const [geminiKey, setGeminiKey] = useState<string>("");
   const [ocrText, setOcrText] = useState<string>("");
   const [brailleText, setBrailleText] = useState<string>("");
   const [gcodeText, setGcodeText] = useState<string>("");
@@ -45,34 +81,18 @@ export default function App() {
     gcode: "idle",
   });
 
-  const [settings, setSettings] = useState<GcodeSettings>({
-    dotSpacing: 2.5,
-    dotDepth: 0.5,
-    startX: 10,
-    startY: 10,
-    feedRate: 1200,
-    drillRate: 300,
-    safeZ: 5,
-  });
+  const [settings, setSettings] = useState<GcodeSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    const savedKey = localStorage.getItem("gemini_api_key");
-    if (savedKey) setGeminiKey(savedKey);
-
     const savedSettings = localStorage.getItem("gcode_settings");
     if (savedSettings) {
       try {
-        setSettings(JSON.parse(savedSettings));
+        setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) });
       } catch (e) {
         console.error("Failed to parse settings", e);
       }
     }
   }, []);
-
-  const handleKeyChange = (key: string) => {
-    setGeminiKey(key);
-    localStorage.setItem("gemini_api_key", key);
-  };
 
   const handleSettingsChange = (newSettings: GcodeSettings) => {
     setSettings(newSettings);
@@ -114,11 +134,6 @@ export default function App() {
       setError("Please capture or upload an image first.");
       return;
     }
-    if (!geminiKey) {
-      setError("Please enter your Gemini API key in Settings.");
-      return;
-    }
-
     setError(null);
     setPipeline((prev) => ({
       ...prev,
@@ -128,26 +143,7 @@ export default function App() {
     }));
 
     try {
-      const ai = new GoogleGenAI({ apiKey: geminiKey });
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: {
-          parts: [
-            {
-              text: "Extract all text from this image exactly as written. Return only the raw text content, preserving original line breaks. Do not add explanations, markdown formatting, or commentary.",
-            },
-            {
-              inlineData: {
-                data: imageData.base64,
-                mimeType: imageData.mimeType,
-              },
-            },
-          ],
-        },
-      });
-
-      const extractedText = response.text?.trim() || "";
+      const extractedText = await tesseractOcr(imageData.previewUrl);
       if (!extractedText) {
         throw new Error("No text extracted from the image.");
       }
@@ -226,25 +222,10 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSettingsChange={handleSettingsChange}
-        geminiKey={geminiKey}
-        onKeyChange={handleKeyChange}
       />
 
       <main className={styles.layout}>
         <section className={styles.inputCol} aria-label="Input">
-          {!geminiKey && (
-            <div className={styles.keyBanner}>
-              <KeyRound size={20} />
-              <div>
-                <strong>Add your Gemini API key</strong>
-                <p>Needed to read text from photos. It stays on this device.</p>
-              </div>
-              <button className={styles.keyBtn} onClick={() => setIsSettingsOpen(true)}>
-                Add key
-              </button>
-            </div>
-          )}
-
           <div className={styles.card}>
             <div className={styles.segmented} role="tablist" aria-label="Input source">
               <button

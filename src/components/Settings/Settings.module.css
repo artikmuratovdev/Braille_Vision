@@ -78,25 +78,6 @@
   color: var(--muted);
 }
 
-.label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.link {
-  font-size: 13px;
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

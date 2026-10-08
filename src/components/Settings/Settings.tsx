@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { KeyRound, X } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 import { GcodeSettings } from '../../utils/gcode';
 import styles from './Settings.module.css';
 
@@ -8,25 +8,24 @@ interface SettingsProps {
   onClose: () => void;
   settings: GcodeSettings;
   onSettingsChange: (newSettings: GcodeSettings) => void;
-  geminiKey: string;
-  onKeyChange: (key: string) => void;
 }
 
-const FIELDS: { name: keyof GcodeSettings; label: string; unit: string; step?: number }[] = [
+type Machine = GcodeSettings['machine'];
+
+const FIELDS: { name: Exclude<keyof GcodeSettings, 'machine'>; label: string; unit: string; step?: number; only?: 'marlin' | 'laser' }[] = [
   { name: 'dotSpacing', label: 'Dot spacing', unit: 'mm', step: 0.1 },
-  { name: 'dotDepth', label: 'Punch depth (− = +Z)', unit: 'mm', step: 0.1 },
+  { name: 'dotDepth', label: 'Punch depth (− = +Z)', unit: 'mm', step: 0.1, only: 'marlin' },
   { name: 'startX', label: 'Start X', unit: 'mm' },
   { name: 'startY', label: 'Start Y', unit: 'mm' },
   { name: 'feedRate', label: 'Feed rate', unit: 'mm/min', step: 50 },
-  { name: 'drillRate', label: 'Punch speed', unit: 'mm/min', step: 50 },
-  { name: 'safeZ', label: 'Z rest', unit: 'mm', step: 0.5 },
+  { name: 'drillRate', label: 'Punch speed', unit: 'mm/min', step: 50, only: 'marlin' },
+  { name: 'safeZ', label: 'Z rest', unit: 'mm', step: 0.5, only: 'marlin' },
+  { name: 'laserPower', label: 'Laser power', unit: '%', step: 5, only: 'laser' },
+  { name: 'laserPulse', label: 'Laser time per dot', unit: 'ms', step: 10, only: 'laser' },
 ];
 
-export default function Settings({ isOpen, onClose, settings, onSettingsChange, geminiKey, onKeyChange }: SettingsProps) {
+export default function Settings({ isOpen, onClose, settings, onSettingsChange }: SettingsProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [localKey, setLocalKey] = useState(geminiKey);
-
-  useEffect(() => setLocalKey(geminiKey), [geminiKey]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -42,10 +41,7 @@ export default function Settings({ isOpen, onClose, settings, onSettingsChange, 
     <dialog
       ref={dialogRef}
       className={styles.sheet}
-      onClose={() => {
-        onKeyChange(localKey);
-        onClose();
-      }}
+      onClose={onClose}
       // Click on the backdrop closes the sheet
       onClick={(e) => e.target === dialogRef.current && dialogRef.current.close()}
       aria-labelledby="settings-title"
@@ -59,28 +55,21 @@ export default function Settings({ isOpen, onClose, settings, onSettingsChange, 
 
       <div className={styles.body}>
         <section className={styles.section}>
-          <label className={styles.label} htmlFor="gemini-key">
-            <KeyRound size={16} /> Gemini API key
-          </label>
-          <input
-            id="gemini-key"
-            type="password"
-            autoComplete="off"
-            className={styles.input}
-            value={localKey}
-            onChange={(e) => setLocalKey(e.target.value)}
-            onBlur={() => onKeyChange(localKey)}
-            placeholder="AIzaSy..."
-          />
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className={styles.link}>
-            Get a free API key →
-          </a>
-        </section>
-
-        <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Machine</h3>
           <div className={styles.grid}>
-            {FIELDS.map(({ name, label, unit, step }) => (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Firmware</span>
+              <select
+                className={styles.input}
+                value={settings.machine}
+                onChange={(e) => onSettingsChange({ ...settings, machine: e.target.value as Machine })}
+              >
+                <option value="marlin">Marlin — Z punch</option>
+                <option value="mlaser">Makeblock mLaser — laser</option>
+                <option value="grbl">GRBL — laser</option>
+              </select>
+            </label>
+            {FIELDS.filter((f) => !f.only || f.only === (settings.machine === 'marlin' ? 'marlin' : 'laser')).map(({ name, label, unit, step }) => (
               <label key={name} className={styles.field}>
                 <span className={styles.fieldLabel}>{label}</span>
                 <span className={styles.inputWrap}>

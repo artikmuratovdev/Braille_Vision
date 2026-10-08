@@ -1,4 +1,4 @@
-// Marlin over the Python bridge (server/bridge.py, fixed COM3): one line out, wait for "ok".
+// Marlin or GRBL over the Python bridge (server/bridge.py, port picked in the app): one line out, wait for "ok".
 let events: EventSource | null = null;
 let connected = false;
 let pending: ((reply: string) => void) | null = null;
@@ -29,9 +29,10 @@ function listen(log: (line: string) => void) {
   events.onmessage = (e) => {
     const line: string = JSON.parse(e.data);
     onLine(line);
-    // Marlin's boot "start" (after a reset) also releases a waiting command, so stop() never hangs.
+    // The boot banner after a reset (Marlin "start", GRBL "Grbl 1.1h ...") also releases a waiting
+    // command, so stop() never hangs. GRBL fails with "error:N" / "ALARM:N".
     // Line noise can glue junk onto the reply ("oMGok"), so a trailing "ok" counts too.
-    if (pending && /^(ok|Error|start)|ok$/.test(line)) {
+    if (pending && /^(ok|error|alarm|start|grbl)|ok$/i.test(line)) {
       const resolve = pending;
       pending = null;
       resolve(/ok$/.test(line) ? "ok" : line);
@@ -41,9 +42,23 @@ function listen(log: (line: string) => void) {
 
 export const isConnected = () => connected;
 
-export async function connect(log: (line: string) => void) {
+export interface PortInfo {
+  device: string;
+  description: string;
+  hwid: string;
+}
+
+export async function listPorts(): Promise<{ ports: PortInfo[]; default: string }> {
+  try {
+    const res = await fetch("/api/ports");
+    if (res.ok) return await res.json();
+  } catch {}
+  throw new Error("Bridge ishlamayapti — terminalda: npm run bridge");
+}
+
+export async function connect(log: (line: string) => void, port?: string) {
   listen(log);
-  await api("connect");
+  await api("connect", port ? { port } : {});
   connected = true;
 }
 
@@ -88,6 +103,9 @@ export async function streamGcode(
     onProgress(i + 1, lines.length);
   }
 }
+
+/** GRBL realtime command (e.g. "?" = status): no newline, no "ok" reply, the answer shows in the log. */
+export const sendRealtime = (ch: string) => api("write", { data: ch });
 
 /** Hardware reset via DTR: the only instant stop on Marlin 1.0.2. Board reboots (~2s), position is lost. */
 export const stop = () => api("reset");

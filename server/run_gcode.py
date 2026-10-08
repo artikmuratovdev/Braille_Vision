@@ -2,6 +2,7 @@
 
   python server/run_gcode.py printer_tests/00_info.gcode
   python server/run_gcode.py printer_tests/03_scale_square.gcode --depth 0.4
+  python server/run_gcode.py grbl_info.gcode --port COM4
 
 Placeholders in test files: {REST} = Z rest height, {PUNCH} = REST - depth,
 {REST-0.2} / {REST+0.2} = fixed offsets. Ctrl+C = emergency stop (hardware reset).
@@ -19,7 +20,7 @@ import urllib.error
 import urllib.request
 
 BRIDGE = "http://127.0.0.1:3001"  # not "localhost": avoids a ~2 s IPv6 fallback on Windows
-REPLY = re.compile(r"^(ok|Error|start)|ok$")
+REPLY = re.compile(r"^(ok|error|alarm|start|grbl)|ok$", re.I)  # Marlin + GRBL
 PLACEHOLDER = re.compile(r"\{(REST|PUNCH)([+-]\d+(?:\.\d+)?)?\}")
 
 
@@ -71,6 +72,7 @@ def main() -> None:
     ap.add_argument("file")
     ap.add_argument("--depth", type=float, default=0.5, help="bosish chuqurligi, mm (manfiy = +Z tomonga)")
     ap.add_argument("--rest", type=float, default=5.0, help="Z 'tepa' balandligi, mm (depth dan katta)")
+    ap.add_argument("--port", help="COM port (default: bridge's current / SERIAL_PORT / COM3)")
     ap.add_argument("-y", "--yes", action="store_true", help="tasdiq so'ramasdan boshlash")
     args = ap.parse_args()
 
@@ -83,9 +85,10 @@ def main() -> None:
     q: queue.Queue = queue.Queue()
     threading.Thread(target=listen, args=(q,), daemon=True).start()
     time.sleep(0.3)
-    if not request("/api/status")["connected"]:
-        print("COM3 ga ulanmoqda (Arduino qayta yuklanadi)...")
-        request("/api/connect", {})
+    status = request("/api/status")
+    if not status["connected"] or (args.port and args.port != status["port"]):
+        print(f"{args.port or status['port']} ga ulanmoqda (plata qayta yuklanadi)...")
+        request("/api/connect", {"port": args.port} if args.port else {})
 
     if not args.yes:
         input("Bosh TEPADA va qog'oz joyida bo'lsa - Enter (bekor qilish: Ctrl+C) ")

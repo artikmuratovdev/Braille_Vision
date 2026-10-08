@@ -115,38 +115,6 @@
 }
 
 /* ---------- Banners ---------- */
-.keyBanner {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-
-.keyBanner strong {
-  display: block;
-  font-size: 14px;
-}
-
-.keyBanner p {
-  font-size: 13px;
-  opacity: 0.85;
-}
-
-.keyBtn {
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 10px;
-  background: var(--warn);
-  color: var(--surface);
-  font-weight: 600;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
 .errorBanner {
   display: flex;
   align-items: flex-start;

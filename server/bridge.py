@@ -6,8 +6,9 @@ Dev:         npm run bridge  +  npm run dev   (Vite proxies /api to this bridge)
 
 API (same as the web app expects):
   GET  /api/events      Server-Sent Events, one message per line received from the printer
+  GET  /api/ports       {"ports": [{"device": "COM4", "description": ..., "hwid": ...}], "default": "COM3"}
   GET  /api/status      {"port": "COM3", "connected": bool}
-  POST /api/connect     open the port (board resets, ~2.5 s boot)
+  POST /api/connect     {"port": "COM4"} open that port, or SERIAL_PORT / COM3 (board resets, ~2.5 s boot)
   POST /api/disconnect  close the port
   POST /api/write       {"data": "G0 X10\n"} raw text to the printer
   POST /api/reset       pulse DTR = hardware reset (emergency stop on Marlin 1.0.2)
@@ -23,8 +24,9 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import serial
+from serial.tools import list_ports
 
-COM_PORT = os.environ.get("SERIAL_PORT", "COM3")
+COM_PORT = os.environ.get("SERIAL_PORT", "COM3")  # default; the app can pick another
 BAUD = 115200
 HTTP_PORT = int(os.environ.get("BRIDGE_PORT", "3001"))
 DIST = Path(__file__).resolve().parent.parent / "dist"
@@ -55,24 +57,30 @@ def read_loop(p: serial.Serial) -> None:
         while b"\n" in buf:
             raw, buf = buf.split(b"\n", 1)
             broadcast(raw.decode("utf-8", "replace").strip())
-    broadcast(f"[bridge] {COM_PORT} yopildi")
+    broadcast(f"[bridge] {p.port} yopildi")
 
 
-def friendly(e: Exception) -> str:
+def friendly(e: Exception, name: str) -> str:
     msg = str(e)
     if "PermissionError" in msg or "Access is denied" in msg:
-        return f"{COM_PORT} band — boshqa dastur ishlatyapti. Uni yoping yoki USB'ni uzib-ulang."
+        return f"{name} band — boshqa dastur (mLaser, Arduino IDE...) ishlatyapti. Uni yoping yoki USB'ni uzib-ulang."
     if "FileNotFoundError" in msg or "could not open port" in msg:
-        return f"{COM_PORT} topilmadi — Arduino ulanganmi? (Device Manager → Ports)"
-    return f"{COM_PORT}: {msg}"
+        return f"{name} topilmadi — qurilma ulanganmi? (Device Manager → Ports)"
+    return f"{name}: {msg}"
 
 
-def connect() -> None:
+def ports() -> list[dict]:
+    return [{"device": p.device, "description": p.description, "hwid": p.hwid} for p in list_ports.comports()]
+
+
+def connect(name: str) -> None:
     global port
     with port_lock:
         if port and port.is_open:
-            return
-        p = serial.Serial(COM_PORT, BAUD, timeout=0.1)  # opening asserts DTR → board resets
+            if port.port == name:
+                return
+            port.close()  # switching ports
+        p = serial.Serial(name, BAUD, timeout=0.1)  # opening asserts DTR → board resets
         port = p
     threading.Thread(target=read_loop, args=(p,), daemon=True).start()
     time.sleep(2.5)  # Marlin boots in ~2 s
@@ -89,7 +97,7 @@ def disconnect() -> None:
 def require_port() -> serial.Serial:
     p = port
     if not (p and p.is_open):
-        raise ConnectionError(f"{COM_PORT} ulanmagan")
+        raise ConnectionError("Port ulanmagan")
     return p
 
 
@@ -117,7 +125,10 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/status":
-            return self.send_json(200, {"port": COM_PORT, "connected": bool(port and port.is_open)})
+            p = port
+            return self.send_json(200, {"port": p.port if p else COM_PORT, "connected": bool(p and p.is_open)})
+        if self.path == "/api/ports":
+            return self.send_json(200, {"ports": ports(), "default": COM_PORT})
         if self.path == "/api/events":
             return self.stream_events()
         if not DIST.exists():
@@ -152,9 +163,10 @@ class Handler(SimpleHTTPRequestHandler):
             body = json.loads(self.rfile.read(length) or b"{}")
         except json.JSONDecodeError:
             return self.send_json(400, {"error": "JSON xato"})
+        name = str(body.get("port") or (port.port if port else COM_PORT))
         try:
             if self.path == "/api/connect":
-                connect()
+                connect(name)
             elif self.path == "/api/disconnect":
                 disconnect()
             elif self.path == "/api/write":
@@ -167,7 +179,7 @@ class Handler(SimpleHTTPRequestHandler):
         except ConnectionError as e:
             self.send_json(409, {"error": str(e)})
         except (serial.SerialException, OSError) as e:
-            self.send_json(500, {"error": friendly(e)})
+            self.send_json(500, {"error": friendly(e, name)})
 
 
 class Server(ThreadingHTTPServer):
@@ -181,6 +193,16 @@ class Server(ThreadingHTTPServer):
         super().server_bind()
 
 
+def lan_ip() -> str | None:
+    """IPv4 of the interface that carries the default route (the Wi-Fi/LAN one). No packet is sent."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        try:
+            s.connect(("10.255.255.255", 1))
+            return s.getsockname()[0]
+        except OSError:
+            return None
+
+
 def main() -> None:
     try:
         server = Server(("::", HTTP_PORT), Handler)
@@ -189,7 +211,10 @@ def main() -> None:
             f"Port {HTTP_PORT} band - bridge allaqachon ishlayapti. http://localhost:{HTTP_PORT} ni oching "
             f"yoki boshqa terminaldagi bridge'ni yoping (Ctrl+C)."
         )
-    print(f"Braille Vision bridge: http://localhost:{HTTP_PORT}  ({COM_PORT} @ {BAUD})  - to'xtatish: Ctrl+C", flush=True)
+    print(f"Braille Vision bridge: http://localhost:{HTTP_PORT}  (default {COM_PORT} @ {BAUD})  - to'xtatish: Ctrl+C", flush=True)
+    ip = lan_ip()
+    if ip:
+        print(f"  Wi-Fi (telefon):  http://{ip}:{HTTP_PORT}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

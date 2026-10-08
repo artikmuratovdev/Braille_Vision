@@ -22,7 +22,29 @@ export interface GcodeSettings {
   feedRate: number;
   drillRate: number;
   safeZ: number;
+  /**
+   * marlin = Z motor presses the dot; the others burn it with a laser:
+   * mlaser = Makeblock mLaser firmware (Marlin 1.0.2 fork, laser = M4 P0..255), grbl = GRBL 1.1.
+   */
+  machine: 'marlin' | 'mlaser' | 'grbl';
+  /** Laser power, % (GRBL: S = % x 10, assumes $30=1000; mLaser: P = % x 2.55). */
+  laserPower: number;
+  /** How long the laser stays on per dot, ms. */
+  laserPulse: number;
 }
+
+export const DEFAULT_SETTINGS: GcodeSettings = {
+  dotSpacing: 2.5,
+  dotDepth: 0.5,
+  startX: 10,
+  startY: 10,
+  feedRate: 1200,
+  drillRate: 300,
+  safeZ: 5,
+  machine: 'marlin',
+  laserPower: 80,
+  laserPulse: 100,
+};
 
 /**
  * Z rest position. Marlin's software endstops never let Z go below 0, so the head's rest
@@ -31,8 +53,12 @@ export interface GcodeSettings {
  */
 export const zRestGcode = (s: GcodeSettings) => `G92 Z${s.safeZ}`;
 
-/** G-code that presses one dot at the current X/Y with the Z motor and returns to rest. */
+/** G-code for one dot at the current X/Y: Z press (Marlin) or a laser pulse (GRBL). */
 export function punchGcode(s: GcodeSettings): string {
+  // GRBL's G4 P is seconds (Marlin's is ms). M3 = constant power, also while standing still.
+  if (s.machine === 'grbl') return `M3 S${Math.round(s.laserPower * 10)}\nG4 P${(s.laserPulse / 1000).toFixed(3)}\nM5\n`;
+  // M4 runs as soon as it's parsed, while the move may still be in the planner: M400 waits for it.
+  if (s.machine === 'mlaser') return `M400\nM4 P${Math.round(s.laserPower * 2.55)}\nG4 P${Math.round(s.laserPulse)}\nM4 P0\n`;
   return `G1 Z${(s.safeZ - s.dotDepth).toFixed(2)} F${s.drillRate}\nG1 Z${s.safeZ} F${s.drillRate}\n`;
 }
 
@@ -117,7 +143,7 @@ ${zRestGcode(settings)}  ; Head must be at rest (up) now
   }
 
   gcode += `G1 X0 Y0 F${settings.feedRate}  ; Back to work zero
-M400     ; Wait until all moves finish
+${{ marlin: 'M400     ; Wait until all moves finish', mlaser: 'M4 P0    ; Laser off', grbl: 'M5       ; Laser off' }[settings.machine]}
 `;
 
   return gcode;

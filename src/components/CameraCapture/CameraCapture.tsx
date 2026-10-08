@@ -10,6 +10,8 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
+  // Frame takes the camera's real shape (16:9, or 9:16 on a phone) so the preview shows the whole shot.
+  const [ratio, setRatio] = useState(4 / 3);
 
   useEffect(() => {
     if (capturedUrl) return;
@@ -63,7 +65,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   }
 
   return (
-    <div className={styles.frame}>
+    <div className={styles.frame} style={{ aspectRatio: ratio }}>
       {capturedUrl ? (
         <>
           <img src={capturedUrl} alt="Captured page" className={styles.media} />
@@ -73,7 +75,14 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
         </>
       ) : (
         <>
-          <video ref={videoRef} autoPlay playsInline muted className={styles.media} />
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className={styles.media}
+            onLoadedMetadata={(e) => setRatio(e.currentTarget.videoWidth / e.currentTarget.videoHeight || 4 / 3)}
+          />
           <div className={styles.guide} aria-hidden="true" />
           <button className={styles.shutter} onClick={handleCapture} aria-label="Take photo" />
         </>
