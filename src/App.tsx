@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createWorker } from "tesseract.js";
-import { Camera, Download, Grip, LoaderCircle, Settings as SettingsIcon, Sparkles, TriangleAlert, Upload } from "lucide-react";
+import { Camera, Download, FileText, Grip, LoaderCircle, Printer, Settings as SettingsIcon, Sparkles, TriangleAlert, Upload } from "lucide-react";
 import CameraCapture from "./components/CameraCapture/CameraCapture";
 import FileUpload from "./components/FileUpload/FileUpload";
 import Pipeline from "./components/Pipeline/Pipeline";
@@ -58,6 +58,8 @@ export default function App() {
     navigator.mediaDevices?.getUserMedia ? "camera" : "file",
   );
   const [resultTab, setResultTab] = useState<"ocr" | "braille" | "gcode">("ocr");
+  // Phones show one section at a time, switched from the bottom nav; laptops show everything (CSS).
+  const [view, setView] = useState<"capture" | "results" | "printer">("capture");
   const [imageData, setImageData] = useState<{
     base64: string;
     mimeType: string;
@@ -159,14 +161,17 @@ export default function App() {
       setGcodeText(gcode);
       setPipeline((prev) => ({ ...prev, gcode: "done" }));
       setResultTab("ocr");
-      // Phones: results sit below the photo, bring them into view.
-      if (matchMedia("(max-width: 1023px)").matches)
-        document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      goTo("results");
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to process image.");
       setPipeline((prev) => ({ ...prev, ocr: "error" }));
     }
+  };
+
+  const goTo = (v: typeof view) => {
+    setView(v);
+    window.scrollTo({ top: 0 });
   };
 
   const handleOcrChange = (text: string) => {
@@ -198,6 +203,11 @@ export default function App() {
     { id: "braille", label: "Braille" },
     { id: "gcode", label: "G-code" },
   ] as const;
+  const navItems = [
+    { id: "capture", label: "Photo", Icon: Camera, dot: false },
+    { id: "results", label: "Results", Icon: FileText, dot: !!ocrText && view !== "results" },
+    { id: "printer", label: "Printer", Icon: Printer, dot: false },
+  ] as const;
 
   return (
     <div className={styles.app}>
@@ -224,7 +234,7 @@ export default function App() {
         onSettingsChange={handleSettingsChange}
       />
 
-      <main className={styles.layout}>
+      <main className={styles.layout} data-view={view}>
         <section className={styles.inputCol} aria-label="Input">
           <div className={styles.card}>
             <div className={styles.segmented} role="tablist" aria-label="Input source">
@@ -283,6 +293,7 @@ export default function App() {
         </section>
 
         <section id="results" className={styles.resultsCol} aria-label="Results">
+          <div className={styles.resultsPane}>
           {ocrText ? (
             <>
               <div className={`${styles.segmented} ${styles.resultTabs}`} role="tablist" aria-label="Result view">
@@ -328,10 +339,25 @@ export default function App() {
               </ol>
             </div>
           )}
+          </div>
 
-          <PrinterControl gcode={gcodeText} settings={settings} />
+          <div className={styles.printerPane}>
+            <PrinterControl gcode={gcodeText} settings={settings} />
+          </div>
         </section>
       </main>
+
+      <nav className={styles.bottomNav} aria-label="Sections">
+        {navItems.map(({ id, label, Icon, dot }) => (
+          <button key={id} aria-current={view === id ? "page" : undefined} onClick={() => goTo(id)}>
+            <span className={styles.navIcon}>
+              <Icon size={22} />
+              {dot && <span className={styles.navDot} aria-label="ready" />}
+            </span>
+            {label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

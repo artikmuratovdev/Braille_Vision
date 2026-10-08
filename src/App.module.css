@@ -59,14 +59,15 @@
   width: min(100%, 1440px);
   margin: 0 auto;
   padding: 16px;
-  /* room for the fixed action bar on phones */
-  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  /* room for the fixed action bar + bottom nav on phones */
+  padding-bottom: calc(var(--nav-h) + 96px + env(safe-area-inset-bottom));
   display: grid;
   gap: 16px;
 }
 
 .inputCol,
-.resultsCol {
+.resultsCol,
+.resultsPane {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -138,9 +139,9 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   z-index: 40;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  padding: 12px 16px;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--border);
@@ -226,6 +227,79 @@
   gap: 4px;
 }
 
+/* ---------- Phone sections + bottom nav ---------- */
+.app {
+  --nav-h: 64px;
+}
+
+@media (max-width: 1023px) {
+  .layout[data-view='capture'] .resultsCol,
+  .layout[data-view='results'] .inputCol,
+  .layout[data-view='results'] .printerPane,
+  .layout[data-view='printer'] .inputCol,
+  .layout[data-view='printer'] .resultsPane {
+    display: none;
+  }
+
+  .layout:not([data-view='capture']) {
+    padding-bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+  }
+}
+
+.bottomNav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.bottomNav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bottomNav button[aria-current='page'] {
+  color: var(--accent);
+}
+
+.navIcon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 30px;
+  border-radius: 999px;
+  transition: background 0.15s;
+}
+
+.bottomNav button[aria-current='page'] .navIcon {
+  background: var(--accent-soft);
+}
+
+.navDot {
+  position: absolute;
+  top: 2px;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+}
+
 /* ---------- Laptop / desktop ---------- */
 @media (min-width: 1024px) {
   .header {
@@ -244,6 +318,10 @@
   .inputCol {
     position: sticky;
     top: 88px;
+  }
+
+  .bottomNav {
+    display: none;
   }
 
   .actionBar {
