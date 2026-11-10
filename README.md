@@ -70,7 +70,7 @@ The first OCR run downloads the language data (~10 MB, needs internet once); the
 The Arduino (Marlin, COM3) is driven through a small Python USB bridge. Setup and calibration: [firmware/README.md](firmware/README.md).
 
 1. Once: `python -m pip install -r server/requirements.txt`
-2. Run the bridge: `npm run bridge` (keep it open), and the app: `npm run dev` or `npm run phone`. Vite proxies `/api` to the bridge, so a phone works too.
+2. Run the bridge and the app together: `npm run dev:all` (or `npm run phone:all` for HTTPS). Ctrl+C stops both. Separately: `npm run bridge` + `npm run dev`. Vite proxies `/api` to the bridge, so a phone works too.
 3. In the **Printer** card: **Connect** → jog the head to the paper corner → **Set zero here** → **Print**. **Stop** resets the Arduino immediately.
 
 `npm start` builds the app and serves it from the bridge at http://localhost:3001 (no Vite needed) The bridge also prints its Wi-Fi address (`http://<ip>:3001`) for phones on the same network. That address is plain HTTP, so on a phone use the Upload tab.
@@ -87,6 +87,7 @@ If the page doesn't open, allow Node.js through Windows Firewall (private networ
 
 - `npm run dev` - Run Vite dev server on port 3000
 - `npm run phone` - Same, over HTTPS for phone camera access
+- `npm run dev:all` / `npm run phone:all` - Bridge + Vite in one terminal
 - `npm run bridge` - USB bridge to the printer (port 3001)
 - `npx tsx scripts/check.ts` - G-code generator self-check
 - `npm run build` - Create production build

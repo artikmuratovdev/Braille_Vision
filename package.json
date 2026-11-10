@@ -11,6 +11,8 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "bridge": "python server/bridge.py",
+    "dev:all": "node scripts/with-bridge.mjs",
+    "phone:all": "node scripts/with-bridge.mjs phone",
     "start": "vite build && python server/bridge.py"
   },
   "dependencies": {
@@ -28,6 +30,7 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.3.0",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
